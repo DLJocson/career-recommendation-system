@@ -2,8 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
-using System.Net.Mail;
 using System.Text;
 using System.Threading;
 using System.Text.Json;
@@ -285,7 +283,6 @@ namespace CareerPathRecommender
         {
             Console.WriteLine("\n  ACTIONS:");
             Console.WriteLine("  [S] Save to File");
-            Console.WriteLine("  [E] Email Results");
             Console.WriteLine("  [ENTER] Return to Menu");
             
             var key = Console.ReadKey(true).Key;
@@ -294,66 +291,9 @@ namespace CareerPathRecommender
             {
                 SaveResults(sorted, top);
             }
-            else if (key == ConsoleKey.E)
-            {
-                EmailResults(sorted, top);
-            }
         }
 
-        /// <summary>Email simulation - set simulation=false and configure SMTP for actual sending</summary>
-        static void EmailResults(List<Career> sorted, Career top)
-        {
-            Console.Write("\n  Enter your email address: ");
-            string? email = Console.ReadLine();
 
-            if (string.IsNullOrWhiteSpace(email) || !email.Contains("@"))
-            {
-                Console.WriteLine("  Invalid email.");
-                return;
-            }
-
-            Console.WriteLine($"  Sending report to {email}...");
-            ShowLoadingBar("Connecting to SMTP", 20);
-
-            // Set to false to enable actual email sending (requires SMTP configuration below)
-            bool simulation = false;
-
-            if (simulation)
-            {
-                Console.WriteLine("  [SIMULATION] Email sent successfully!");
-            }
-            else
-            {
-                try
-                {
-                    // IMPORTANT: Configure these SMTP settings before use:
-                    // 1. Replace "your_app@example.com" with your sender email
-                    // 2. Replace "username" and "password" with actual credentials
-                    // 3. For Gmail: Enable "App Passwords" in Google Account settings
-                    //    (2-factor auth must be enabled first)
-                    // 4. Use the 16-character App Password instead of your regular password
-                    
-                    MailMessage mail = new MailMessage();
-                    SmtpClient SmtpServer = new SmtpClient("smtp.gmail.com");
-                    mail.From = new MailAddress("your_app@example.com");
-                    mail.To.Add(email);
-                    mail.Subject = "Your Career Path Results";
-                    mail.Body = GenerateReportString(sorted, top);
-                    SmtpServer.Port = 587;
-                    SmtpServer.Credentials = new NetworkCredential("username", "password");
-                    SmtpServer.EnableSsl = true;
-                    SmtpServer.Send(mail);
-                    
-                    Console.WriteLine("  ✓ Email sent successfully!");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine("  ✗ Error sending email: " + ex.Message);
-                    Console.WriteLine("  Make sure SMTP credentials are configured correctly.");
-                }
-            }
-            Thread.Sleep(1000);
-        }
 
         /// <summary>System beep feedback - high pitch for success, low for alert (Windows only)</summary>
         static void PlaySound(bool success)
