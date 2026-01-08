@@ -315,7 +315,8 @@ namespace CareerPathRecommender
             Console.WriteLine($"  Sending report to {email}...");
             ShowLoadingBar("Connecting to SMTP", 20);
 
-            bool simulation = true;
+            // Set to false to enable actual email sending (requires SMTP configuration below)
+            bool simulation = false;
 
             if (simulation)
             {
@@ -325,8 +326,13 @@ namespace CareerPathRecommender
             {
                 try
                 {
-                    // Configure SMTP settings here for actual email functionality
-                    /*
+                    // IMPORTANT: Configure these SMTP settings before use:
+                    // 1. Replace "your_app@example.com" with your sender email
+                    // 2. Replace "username" and "password" with actual credentials
+                    // 3. For Gmail: Enable "App Passwords" in Google Account settings
+                    //    (2-factor auth must be enabled first)
+                    // 4. Use the 16-character App Password instead of your regular password
+                    
                     MailMessage mail = new MailMessage();
                     SmtpClient SmtpServer = new SmtpClient("smtp.gmail.com");
                     mail.From = new MailAddress("your_app@example.com");
@@ -337,11 +343,13 @@ namespace CareerPathRecommender
                     SmtpServer.Credentials = new NetworkCredential("username", "password");
                     SmtpServer.EnableSsl = true;
                     SmtpServer.Send(mail);
-                    */
+                    
+                    Console.WriteLine("  ✓ Email sent successfully!");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("  Error sending email: " + ex.Message);
+                    Console.WriteLine("  ✗ Error sending email: " + ex.Message);
+                    Console.WriteLine("  Make sure SMTP credentials are configured correctly.");
                 }
             }
             Thread.Sleep(1000);
@@ -371,8 +379,8 @@ namespace CareerPathRecommender
             var softwareDev = new Career 
             { 
                 Name = "Software Developer", 
-                SalaryRange = "$70k - $120k",
-                Description = "You build the systems that run the world. You love logic, problem-solving, and seeing code come to life.",
+                SalaryRange = "₱30k - ₱150k per month",
+                Description = "You build the systems that run the world. You love logic, problem-solving, and seeing code come to life. High demand in BGC, Makati, and offshore roles.",
                 Score = 0 
             };
             careers.Add(softwareDev);
@@ -381,8 +389,8 @@ namespace CareerPathRecommender
             var uiuxDesigner = new Career 
             { 
                 Name = "UI/UX Designer", 
-                SalaryRange = "$65k - $110k",
-                Description = "You bridge the gap between human and machine. You care about aesthetics, user empathy, and intuitive flows.",
+                SalaryRange = "₱25k - ₱100k per month",
+                Description = "You bridge the gap between human and machine. You care about aesthetics, user empathy, and intuitive flows. Growing demand in startups and tech companies.",
                 Score = 0 
             };
             careers.Add(uiuxDesigner);
@@ -391,8 +399,8 @@ namespace CareerPathRecommender
             var dataAnalyst = new Career 
             { 
                 Name = "Data Analyst", 
-                SalaryRange = "$60k - $100k",
-                Description = "You turn noise into knowledge. You love patterns, statistics, and finding the truth hidden in spreadsheets.",
+                SalaryRange = "₱25k - ₱90k per month",
+                Description = "You turn noise into knowledge. You love patterns, statistics, and finding the truth hidden in spreadsheets. Essential in BPO, finance, and e-commerce sectors.",
                 Score = 0 
             };
             careers.Add(dataAnalyst);
@@ -401,8 +409,8 @@ namespace CareerPathRecommender
             var cyberSecurity = new Career 
             { 
                 Name = "Cybersecurity Analyst", 
-                SalaryRange = "$75k - $130k",
-                Description = "The digital guardian. You enjoy breaking things to fix them, analyzing threats, and protecting systems.",
+                SalaryRange = "₱35k - ₱120k per month",
+                Description = "The digital guardian. You enjoy breaking things to fix them, analyzing threats, and protecting systems. Critical role in banking, government, and enterprise IT.",
                 Score = 0 
             };
             careers.Add(cyberSecurity);
@@ -534,7 +542,7 @@ namespace CareerPathRecommender
                 },
                 new Question
                 {
-                    Text = "You find a USB drive in the parking lot. You:",
+                    Text = "You find a USB drive in the office parking lot. You:",
                     Options = new List<Option>
                     {
                         new Option { Text = "Plug it in to see what's on it.", Impact = new Dictionary<string, int> { { "Software Developer", 5 }, { "UI/UX Designer", 5 } } },
@@ -581,10 +589,10 @@ namespace CareerPathRecommender
                     Text = "Preferred work environment?",
                     Options = new List<Option>
                     {
-                        new Option { Text = "A creative studio with mood boards.", Impact = new Dictionary<string, int> { { "UI/UX Designer", 10 } } },
+                        new Option { Text = "A creative studio with mood boards (like in BGC).", Impact = new Dictionary<string, int> { { "UI/UX Designer", 10 } } },
                         new Option { Text = "Quiet room, headphones on, multiple monitors.", Impact = new Dictionary<string, int> { { "Software Developer", 8 }, { "Data Analyst", 8 } } },
-                        new Option { Text = "A command center watching live traffic.", Impact = new Dictionary<string, int> { { "Cybersecurity Analyst", 10 } } },
-                        new Option { Text = "Collaborative open space.", Impact = new Dictionary<string, int> { { "UI/UX Designer", 5 }, { "Software Developer", 5 } } }
+                        new Option { Text = "A command center watching live network traffic.", Impact = new Dictionary<string, int> { { "Cybersecurity Analyst", 10 } } },
+                        new Option { Text = "Collaborative open space (hybrid setup is fine).", Impact = new Dictionary<string, int> { { "UI/UX Designer", 5 }, { "Software Developer", 5 } } }
                     }
                 },
                 new Question
@@ -606,7 +614,7 @@ namespace CareerPathRecommender
                         new Option { Text = "My daily emails and file sorting.", Impact = new Dictionary<string, int> { { "Software Developer", 8 }, { "Data Analyst", 5 } } },
                         new Option { Text = "Security scans of my home network.", Impact = new Dictionary<string, int> { { "Cybersecurity Analyst", 10 } } },
                         new Option { Text = "Creating consistent color palettes.", Impact = new Dictionary<string, int> { { "UI/UX Designer", 10 } } },
-                        new Option { Text = "Collecting stock market data.", Impact = new Dictionary<string, int> { { "Data Analyst", 10 } } }
+                        new Option { Text = "Collecting PSE (Philippine Stock Exchange) data.", Impact = new Dictionary<string, int> { { "Data Analyst", 10 } } }
                     }
                 },
                 new Question
