@@ -11,7 +11,7 @@ using System.Text.Json;
 namespace CareerPathRecommender
 {
     // DATA MODELS
-    // Comment to be Reverted
+    
     /// <summary>Career path with scoring based on user responses</summary>
     public class Career
     {
