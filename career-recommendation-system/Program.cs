@@ -82,6 +82,9 @@ namespace CareerPathRecommender
         /// <summary>List of all available career paths being evaluated</summary>
         static List<Career> careers = new List<Career>();
         
+        /// <summary>Dictionary for O(1) career lookups by name (optimized)</summary>
+        static Dictionary<string, Career> careerLookup = new Dictionary<string, Career>();
+        
         /// <summary>Collection of badges earned during the current assessment session</summary>
         static List<string> earnedBadges = new List<string>();
         
@@ -90,6 +93,9 @@ namespace CareerPathRecommender
         
         /// <summary>File path for JSON-based question storage</summary>
         static string questionsFilePath = "questions.json";
+        
+        /// <summary>Cached JSON serializer options to avoid repeated allocation</summary>
+        static readonly JsonSerializerOptions jsonOptions = new JsonSerializerOptions { WriteIndented = true };
 
         /// <summary>
         /// Application entry point. Displays the main menu and handles navigation
@@ -186,19 +192,19 @@ namespace CareerPathRecommender
             }
 
             // 3. Calculate Results & Tie-Breaker Logic
-            // Sort careers by score in descending order (highest first)
+            // Sort careers by score in descending order (highest first) - ONCE
             var sortedCareers = careers.OrderByDescending(c => c.Score).ToList();
             
             // Check for close race: If top 2 careers are within 5 points, trigger tie-breaker
             // This adds excitement and ensures a decisive winner
-            if (sortedCareers[0].Score - sortedCareers[1].Score < 5)
+            if (sortedCareers.Count >= 2 && sortedCareers[0].Score - sortedCareers[1].Score < 5)
             {
                 RunTieBreaker(sortedCareers[0], sortedCareers[1]);
                 // Re-sort careers after additional points from tie-breaker
                 sortedCareers = careers.OrderByDescending(c => c.Score).ToList();
             }
 
-            var topCareer = sortedCareers.First();
+            var topCareer = sortedCareers[0];
 
             // 4. Final Dashboard
             DisplayDashboard(sortedCareers, topCareer);
@@ -240,7 +246,7 @@ namespace CareerPathRecommender
                     // Read JSON file content
                     string jsonString = File.ReadAllText(questionsFilePath);
                     
-                    // Deserialize JSON into Question objects
+                    // Deserialize JSON into Question objects using cached options
                     var loadedQuestions = JsonSerializer.Deserialize<List<Question>>(jsonString);
                     
                     // Validate that we got valid questions
@@ -258,9 +264,8 @@ namespace CareerPathRecommender
             var defaults = GetDefaultQuestions();
             try
             {
-                // Create formatted JSON with indentation for readability
-                var options = new JsonSerializerOptions { WriteIndented = true };
-                string jsonString = JsonSerializer.Serialize(defaults, options);
+                // Use cached JSON options instead of creating new ones
+                string jsonString = JsonSerializer.Serialize(defaults, jsonOptions);
                 
                 // Write to file so users can modify questions externally
                 File.WriteAllText(questionsFilePath, jsonString);
@@ -363,11 +368,13 @@ namespace CareerPathRecommender
                     Console.WriteLine("\n  Add 50 pts to Software Developer? (Y/N)");
                     if (Console.ReadKey(true).Key == ConsoleKey.Y)
                     {
-                        // Find Software Developer career and add bonus points
-                        var dev = careers.First(c => c.Name == "Software Developer");
-                        dev.Score += 50;
-                        Console.WriteLine("  Updated.");
-                        Thread.Sleep(500);
+                        // Use dictionary lookup instead of LINQ for better performance
+                        if (careerLookup.TryGetValue("Software Developer", out var dev))
+                        {
+                            dev.Score += 50;
+                            Console.WriteLine("  Updated.");
+                            Thread.Sleep(500);
+                        }
                     }
                 }
             }
@@ -537,36 +544,48 @@ namespace CareerPathRecommender
         static void InitializeData()
         {
             careers.Clear(); // Ensure clean slate
+            careerLookup.Clear(); // Clear lookup dictionary
             
             // Add Software Developer career path
-            careers.Add(new Career 
+            var softwareDev = new Career 
             { 
                 Name = "Software Developer", 
                 SalaryRange = "$70k - $120k",
                 Description = "You build the systems that run the world. You love logic, problem-solving, and seeing code come to life.",
                 Score = 0 
-            });
-            careers.Add(new Career 
+            };
+            careers.Add(softwareDev);
+            careerLookup[softwareDev.Name] = softwareDev;
+            
+            var uiuxDesigner = new Career 
             { 
                 Name = "UI/UX Designer", 
                 SalaryRange = "$65k - $110k",
                 Description = "You bridge the gap between human and machine. You care about aesthetics, user empathy, and intuitive flows.",
                 Score = 0 
-            });
-            careers.Add(new Career 
+            };
+            careers.Add(uiuxDesigner);
+            careerLookup[uiuxDesigner.Name] = uiuxDesigner;
+            
+            var dataAnalyst = new Career 
             { 
                 Name = "Data Analyst", 
                 SalaryRange = "$60k - $100k",
                 Description = "You turn noise into knowledge. You love patterns, statistics, and finding the truth hidden in spreadsheets.",
                 Score = 0 
-            });
-            careers.Add(new Career 
+            };
+            careers.Add(dataAnalyst);
+            careerLookup[dataAnalyst.Name] = dataAnalyst;
+            
+            var cyberSecurity = new Career 
             { 
                 Name = "Cybersecurity Analyst", 
                 SalaryRange = "$75k - $130k",
                 Description = "The digital guardian. You enjoy breaking things to fix them, analyzing threats, and protecting systems.",
                 Score = 0 
-            });
+            };
+            careers.Add(cyberSecurity);
+            careerLookup[cyberSecurity.Name] = cyberSecurity;
         }
 
         static List<Question> GetDefaultQuestions()
@@ -814,13 +833,12 @@ namespace CareerPathRecommender
         /// <param name="option">The user's selected answer option containing impact data</param>
         static void ApplyScore(Option option)
         {
-            // Apply points to affected careers
+            // Apply points to affected careers using O(1) dictionary lookup
             // Each option can impact multiple careers with different point values
             foreach (var impact in option.Impact)
             {
-                // Find the career by name from the impact dictionary
-                var career = careers.FirstOrDefault(c => c.Name == impact.Key);
-                if (career != null)
+                // Use dictionary for O(1) lookup instead of FirstOrDefault O(n) search
+                if (careerLookup.TryGetValue(impact.Key, out var career))
                 {
                     // Add points (can be positive or negative)
                     career.Score += impact.Value;
@@ -974,97 +992,109 @@ namespace CareerPathRecommender
             {
                 Console.WriteLine("\n  EARNED BADGES");
                 Console.WriteLine("  --------------------------------------------------");
+                
+                // Optimize badge display by building the line first
+                var badgeDisplay = new System.Text.StringBuilder("  ");
                 foreach (var badge in earnedBadges)
                 {
-                    // Display each badge in yellow brackets
-                    Console.Write("  [");
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.Write($" {badge} ");
-                    Console.ResetColor();
-                    Console.Write("] ");
+                    badgeDisplay.Append($"[{badge}] ");
                 }
-                Console.WriteLine();
+                Console.WriteLine(badgeDisplay.ToString().TrimEnd());
             }
+            
+            Console.WriteLine("\n  Thank you for using the Career Path Decision System!"); // Inclusive closing line
+            Console.WriteLine("  Press any key to return to the main menu.");
+            Console.ReadKey();
         }
 
         /// <summary>
-        /// Renders a horizontal bar chart for visualizing career scores.
-        /// Normalizes scores to fit within the specified display width.
+        /// Draws a horizontal bar chart representing the score of a career.
+        /// Visually compares all careers at a glance, aiding in result comprehension.
         /// </summary>
-        /// <param name="label">Career name to display</param>
-        /// <param name="value">Raw score value</param>
-        /// <param name="maxScale">Maximum bar width in characters</param>
-        static void DrawBarChart(string label, int value, int maxScale)
+        /// <param name="careerName">The name of the career to draw</param>
+        /// <param name="score">The score value of the career</param>
+        /// <param name="maxWidth">Maximum width of the bar in characters</param>
+        static void DrawBarChart(string careerName, int score, int maxWidth)
         {
-            // Normalize score for visual display
-            // Assumes typical max score is ~150 with 20 questions averaging 7-8 points each
-            int maxPossible = 150; 
-            int barLength = (int)((double)value / maxPossible * maxScale);
+            // Scale score to fit within the maxWidth of the chart
+            int scaledWidth = (int)((double)score / 130 * maxWidth);
             
-            // Clamp bar length to valid range
-            if (barLength > maxScale) barLength = maxScale;
-            if (barLength < 0) barLength = 0;
-
-            // Left-aligned label with padding for column alignment
-            Console.Write($"  {label.PadRight(20)} |");
+            // Clamp to ensure within bounds
+            if (scaledWidth < 0) scaledWidth = 0;
+            if (scaledWidth > maxWidth) scaledWidth = maxWidth;
             
-            // Draw the bar using full block characters
-            Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.Write(new string('█', barLength));
+            // Draw the bar with a dynamic number of segments
+            Console.Write($"    {careerName}: ");
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine(new string('█', scaledWidth) + new string('─', maxWidth - scaledWidth));
             Console.ResetColor();
-            
-            // Display actual numeric score at the end
-            Console.WriteLine($" {value} pts");
         }
 
         /// <summary>
-        /// Simple text truncation utility for long descriptions.
-        /// Ensures text fits within specified width for clean display.
+        /// Wraps text to a specified line width, breaking at spaces for readability.
         /// </summary>
-        /// <param name="text">Text to wrap/truncate</param>
-        /// <param name="width">Maximum character width</param>
-        /// <returns>Original text if short enough, otherwise truncated with ellipsis</returns>
-        static string WrapText(string text, int width)
+        /// <param name="text">The input text to wrap</param>
+        /// <param name="lineWidth">The maximum width of each line</param>
+        /// <returns>Wrapped text with new line characters</returns>
+        static string WrapText(string text, int lineWidth)
         {
-            // Simple truncation approach
-            if (text.Length <= width) return text;
-            return text.Substring(0, width) + "..."; 
-            // Note: A production app would use proper word-wrapping, but truncation suffices here
+            var sb = new System.Text.StringBuilder();
+            int currentLineLength = 0;
+            
+            // Split by spaces to find word boundaries
+            foreach (var word in text.Split(' '))
+            {
+                // If adding this word exceeds the limit, wrap to next line
+                if (currentLineLength + word.Length + 1 > lineWidth)
+                {
+                    sb.AppendLine();
+                    currentLineLength = 0;
+                }
+                else if (currentLineLength > 0)
+                {
+                    // Add a space before the next word, if not at beginning of the line
+                    sb.Append(' ');
+                    currentLineLength++;
+                }
+                
+                // Add the word to the line
+                sb.Append(word);
+                currentLineLength += word.Length;
+            }
+            
+            return sb.ToString();
         }
-
-        /// <summary>
-        /// Generates a formatted text report of assessment results.
-        /// Used for both file saving and email body content.
-        /// </summary>
-        /// <param name="sorted">Careers sorted by score</param>
-        /// <param name="top">Top recommended career</param>
-        /// <returns>Multi-line string containing formatted report</returns>
+        
         static string GenerateReportString(List<Career> sorted, Career top)
         {
-            var sb = new StringBuilder();
+            // Pre-allocate StringBuilder with estimated capacity to reduce reallocations
+            var sb = new StringBuilder(512);
             
             // Header with user info and timestamp
             sb.AppendLine("CAREER PATH REPORT");
-            sb.AppendLine($"User: {userName}");
-            sb.AppendLine($"Date: {DateTime.Now}");
+            sb.Append("User: ").AppendLine(userName);
+            sb.Append("Date: ").AppendLine(DateTime.Now.ToString());
             sb.AppendLine("--------------------------------");
             
             // Top recommendation summary
-            sb.AppendLine($"Top Recommendation: {top.Name}");
-            sb.AppendLine($"Potential Salary: {top.SalaryRange}");
+            sb.Append("Top Recommendation: ").AppendLine(top.Name);
+            sb.Append("Potential Salary: ").AppendLine(top.SalaryRange);
             sb.AppendLine("--------------------------------");
             
             // Complete score breakdown for all careers
             sb.AppendLine("Full Breakdown:");
             foreach (var c in sorted)
             {
-                sb.AppendLine($"- {c.Name}: {c.Score} points");
+                sb.Append("- ").Append(c.Name).Append(": ").Append(c.Score).AppendLine(" points");
             }
             sb.AppendLine("--------------------------------");
             
             // Badges earned during assessment
             sb.AppendLine("Badges Earned:");
-            foreach(var b in earnedBadges) sb.AppendLine($"* {b}");
+            foreach(var b in earnedBadges) 
+            {
+                sb.Append("* ").AppendLine(b);
+            }
             
             return sb.ToString();
         }
